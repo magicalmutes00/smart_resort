@@ -1,11 +1,3 @@
-databases:
-  - name: smartresort-redis
-    plan: free
-    region: oregon
-    ipAllowList: []
-    maxmemoryPolicy: allkeys-lru
-    version: "7"
-
 services:
   - type: web
     name: smartresort-backend
@@ -19,9 +11,7 @@ services:
       - key: DATABASE_URL
         value: postgresql://postgres.pratheesh1004:pratheesh1004@aws-0-us-west-1.pooler.supabase.com:6543/postgres
       - key: REDIS_URL
-        fromDatabase:
-          name: smartresort-redis
-          property: connectionString
+        value: redis://red-dacq81mk1f9s73aaang0:6379
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
