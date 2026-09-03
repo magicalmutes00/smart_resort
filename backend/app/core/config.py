@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Database
-    DATABASE_URL: str = "postgresql+psycopg2://postgres.ccobvieckisfmmdyeeim:pratheesh1004@aws-0-us-west-1.pooler.supabase.com:6543/postgres"
+    DATABASE_URL: str = "postgresql+psycopg2://postgres.ccobvieckisfmmdyeeim:pratheesh1004@aws-0-us-west-1.pooler.supabase.com:6543/postgres?sslmode=require"
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
