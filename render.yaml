@@ -10,7 +10,7 @@ services:
     healthCheckPath: /
     envVars:
       - key: DATABASE_URL
-        value: postgresql://postgres.ccobvieckisfmmdyeeim:pratheesh1004@aws-0-us-west-1.pooler.supabase.com:6543/postgres?sslmode=require
+        value: postgresql://postgres:pratheesh1004@db.ccobvieckisfmmdyeeim.supabase.co:5432/postgres?sslmode=require
       - key: REDIS_URL
         value: redis://red-dacq81mk1f9s73aaang0:6379
       - key: JWT_SECRET

@@ -5,10 +5,10 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Database
-    DATABASE_URL: str = "postgresql+psycopg2://postgres.ccobvieckisfmmdyeeim:pratheesh1004@aws-0-us-west-1.pooler.supabase.com:6543/postgres?sslmode=require"
+    DATABASE_URL: str = "postgresql://postgres:pratheesh1004@db.ccobvieckisfmmdyeeim.supabase.co:5432/postgres?sslmode=require"
 
     # Redis
-    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_URL: str = "redis://red-dacq81mk1f9s73aaang0:6379"
 
     # JWT
     JWT_SECRET: str = "dev-secret-key-replace-in-production"
