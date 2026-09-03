@@ -1,0 +1,30 @@
+databases:
+  - name: smartresort-redis
+    plan: free
+    region: oregon
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru
+    version: "7"
+
+services:
+  - type: web
+    name: smartresort-backend
+    runtime: python
+    plan: starter
+    region: oregon
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: alembic upgrade head && python -m app.utils.seed && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://postgres.pratheesh1004:pratheesh1004@aws-0-us-west-1.pooler.supabase.com:6543/postgres
+      - key: REDIS_URL
+        fromDatabase:
+          name: smartresort-redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: '["https://smart-resort-pu1vwxe4c-pratheeshs-projects-f7b49412.vercel.app"]'

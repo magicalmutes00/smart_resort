@@ -1,0 +1,81 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: smartresort_postgres
+    environment:
+      POSTGRES_DB: smartresort
+      POSTGRES_USER: smartresort
+      POSTGRES_PASSWORD: smartresort
+    ports:
+      - "5432:5432"
+    volumes:
+      - smartresort_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smartresort -d smartresort"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - smartresort_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: smartresort_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - smartresort_redisdata:/data
+    networks:
+      - smartresort_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: smartresort_backend
+    environment:
+      - DATABASE_URL=postgresql://smartresort:smartresort@postgres:5432/smartresort
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET=dev-secret-change-in-production
+      - JWT_REFRESH_SECRET=dev-refresh-secret-change-in-production
+      - CORS_ORIGINS=["http://localhost:5173","http://localhost:3000"]
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - smartresort_net
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  web-customer:
+    image: node:20-alpine
+    container_name: smartresort_web_customer
+    working_dir: /app
+    volumes:
+      - ./apps/web/customer:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api/v1
+    command: npm run dev -- --host 0.0.0.0
+    networks:
+      - smartresort_net
+    depends_on:
+      - backend
+
+volumes:
+  smartresort_pgdata:
+  smartresort_redisdata:
+
+networks:
+  smartresort_net:
+    driver: bridge
