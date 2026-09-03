@@ -1,0 +1,10 @@
+*.tfstate
+*.tfstate.backup
+.terraform/
+.plan
+apply.plan
+
+.env
+.env.*
+
+.DS_Store

@@ -1,0 +1,73 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
+build/
+.next/
+.vite/
+*.log
+npm-debug.log*
+
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+*.iml
+*.ipr
+*.iws
+.metadata
+.idea/
+.gradle/
+
+# Editor
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+*.pem
+secrets/
+credentials/
+
+# OS
+.DS_Store
+desktop.ini
+ehthumbs.db
+Thumbs.db
+
+# Testing
+coverage/
+*.lcov
+
+# Docker
+*.log
+
+# Build outputs
+target/
+out/

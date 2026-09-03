@@ -1,0 +1,7 @@
+# Generated files
+*.md.html
+site/
+
+# Temp
+*.tmp
+.DS_Store
