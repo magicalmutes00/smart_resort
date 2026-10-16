@@ -40,7 +40,7 @@ services:
       - key: JWT_REFRESH_SECRET
         generateValue: true
       - key: CORS_ORIGINS
-        value: '["https://smart-resort-pu1vwxe4c-pratheeshs-projects-f7b49412.vercel.app"]'
+        value: '["https://smartresortweb.netlify.app","https://smart-resort-pu1vwxe4c-pratheeshs-projects-f7b49412.vercel.app"]'
       # Base URL of the customer web app, embedded in generated QR codes.
       - key: CUSTOMER_APP_URL
         value: "https://smart-resort-pu1vwxe4c-pratheeshs-projects-f7b49412.vercel.app"
