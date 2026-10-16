@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Database
-    DATABASE_URL: str = "postgresql://smartresort:smartresort@postgres:5432/smartresort"
+    DATABASE_URL: str = "postgresql+psycopg2://smartresort:smartresort@postgres:5432/smartresort"
     # Optional direct (non-pooled) URL used for migrations. Falls back to DATABASE_URL.
     DATABASE_URL_DIRECT: str = ""
 

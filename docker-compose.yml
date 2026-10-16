@@ -39,7 +39,7 @@ services:
       dockerfile: Dockerfile
     container_name: smartresort_backend
     environment:
-      - DATABASE_URL=postgresql://smartresort:smartresort@postgres:5432/smartresort
+      - DATABASE_URL=postgresql+psycopg2://smartresort:smartresort@postgres:5432/smartresort
       - REDIS_URL=redis://redis:6379/0
       - JWT_SECRET=dev-secret-change-in-production
       - JWT_REFRESH_SECRET=dev-refresh-secret-change-in-production

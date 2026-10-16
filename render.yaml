@@ -28,11 +28,11 @@ services:
       - key: PYTHON_VERSION
         value: "3.11.9"
       - key: DATABASE_URL
-        value: "postgresql://neondb_owner:npg_qj09MdFeNUpK@ep-dawn-queen-b46m6ppr-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+        value: "postgresql+psycopg2://neondb_owner:npg_qj09MdFeNUpK@ep-dawn-queen-b46m6ppr-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
       # Optional: a direct (non-pooler) Neon endpoint for faster/safer migrations.
       # Leave unset to reuse DATABASE_URL.
       # - key: DATABASE_URL_DIRECT
-      #   value: "postgresql://neondb_owner:npg_qj09MdFeNUpK@ep-dawn-queen-b46m6ppr.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require"
+      #   value: "postgresql+psycopg2://neondb_owner:npg_qj09MdFeNUpK@ep-dawn-queen-b46m6ppr.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require"
       - key: REDIS_URL
         value: "rediss://default:gQAAAAAAAXR_AAIgcDE5NzE5NGZhZmVlZTI0MzlkOTNiNzVkNjRmZjI0M2Y5Nw@tough-hound-95359.upstash.io:6379"
       - key: JWT_SECRET
@@ -62,6 +62,6 @@ services:
       - key: PYTHON_VERSION
         value: "3.11.9"
       - key: DATABASE_URL
-        value: "postgresql://neondb_owner:npg_qj09MdFeNUpK@ep-dawn-queen-b46m6ppr-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+        value: "postgresql+psycopg2://neondb_owner:npg_qj09MdFeNUpK@ep-dawn-queen-b46m6ppr-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
       - key: REDIS_URL
         value: "rediss://default:gQAAAAAAAXR_AAIgcDE5NzE5NGZhZmVlZTI0MzlkOTNiNzVkNjRmZjI0M2Y5Nw@tough-hound-95359.upstash.io:6379"

@@ -32,13 +32,13 @@ jobs:
           pip install pytest pytest-cov
       - name: Run migrations (test DB)
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/smartresort_test
+          DATABASE_URL: postgresql+psycopg2://test:test@localhost:5432/smartresort_test
         run: |
           cd backend
           alembic upgrade head
       - name: Run tests
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/smartresort_test
+          DATABASE_URL: postgresql+psycopg2://test:test@localhost:5432/smartresort_test
         run: |
           cd backend
           pytest --cov=app --cov-report=term-missing
