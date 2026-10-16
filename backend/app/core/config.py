@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     # Scheduled jobs (auto-assignment & escalation)
     CRON_ESCALATE_AFTER_MINUTES: int = 30
     CRON_BATCH_SIZE: int = 500
+    # Shared secret for the /api/v1/cron trigger endpoint (free-tier scheduling).
+    # Leave empty to disable the endpoint.
+    CRON_TOKEN: str = ""
 
     @property
     def migration_database_url(self) -> str:

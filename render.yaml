@@ -44,6 +44,10 @@ services:
       # Base URL of the customer web app, embedded in generated QR codes.
       - key: CUSTOMER_APP_URL
         value: "https://smart-resort-pu1vwxe4c-pratheeshs-projects-f7b49412.vercel.app"
+      # Shared secret for POST /api/v1/cron/run (free-tier scheduling via an
+      # external pinger). sync:false keeps the dashboard value on blueprint syncs.
+      - key: CRON_TOKEN
+        sync: false
 
   # ------------------------------------------------------------------ #
   # Cron job: auto-assign pending work + escalate stale tasks (every 15 min)

@@ -7,7 +7,7 @@ from app.api.v1 import (
     auth, users, properties,
     menu, orders, tasks, tables,
     qr, inventory, housekeeping, maintenance,
-    reports, payments, ai, google_auth,
+    reports, payments, ai, google_auth, cron,
 )
 from app.websocket.gateway import router as ws_router
 
@@ -48,6 +48,7 @@ app.include_router(maintenance.router, prefix="/api/v1/maintenance", tags=["Main
 app.include_router(reports.router, prefix="/api/v1/reports", tags=["Reports"])
 app.include_router(payments.router, prefix="/api/v1/payments", tags=["Payments"])
 app.include_router(ai.router, prefix="/api/v1/ai", tags=["AI"])
+app.include_router(cron.router, prefix="/api/v1/cron", tags=["Cron"])
 
 
 @app.get("/api/v1/health")

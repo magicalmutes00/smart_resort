@@ -1,0 +1,26 @@
+# Free-tier scheduler: Render cron jobs have no free tier, so this workflow
+# pings the backend's secured trigger endpoint every 15 minutes instead.
+# Required repo secrets (Settings > Secrets and variables > Actions):
+#   RENDER_CRON_URL  e.g. https://smartresort-backend-8rac.onrender.com
+#   CRON_TOKEN       shared secret, must match the backend's CRON_TOKEN env var
+name: food-order-check
+
+on:
+  schedule:
+    # Every 15 minutes. Note: GitHub may delay scheduled runs by a few minutes,
+    # and pauses schedules in private repos after 60 days without activity.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger scheduled jobs on Render
+        run: |
+          curl -fsS -m 100 -X POST "$RENDER_CRON_URL/api/v1/cron/run" \
+            -H "X-Cron-Token: $CRON_TOKEN"
+        env:
+          RENDER_CRON_URL: ${{ secrets.RENDER_CRON_URL }}
+          CRON_TOKEN: ${{ secrets.CRON_TOKEN }}
