@@ -12,6 +12,8 @@ What it does, in order, inside a single transaction:
 3. Auto-assigns PENDING ``maintenance_requests`` to maintenance staff.
 4. Escalates work that has been open longer than ``CRON_ESCALATE_AFTER_MINUTES``
    by bumping its priority one step and notifying managers.
+5. Flags food orders stuck in a non-terminal status (notifying assigned staff
+   and managers) without changing order status.
 
 Every action is recorded in ``audit_logs`` so there is a trail of who/what/when.
 The job is idempotent: re-running it does not create duplicate assignments.
@@ -31,6 +33,7 @@ from app.core.database import SessionLocal
 from app.models.audit import AuditLog, Notification
 from app.models.housekeeping import HousekeepingTask
 from app.models.maintenance import MaintenanceRequest
+from app.models.order import Order
 from app.models.role import Role
 from app.models.staff import Staff
 from app.models.task import Task, TaskAssignment
@@ -316,6 +319,128 @@ def escalate_tasks(db: Session, summary: dict, now: datetime) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Food-order status check
+# --------------------------------------------------------------------------- #
+FOOD_ORDER_TERMINAL_STATUSES = ("COMPLETED", "CANCELLED")
+
+
+def flag_stale_food_orders(db: Session, summary: dict, now: datetime) -> None:
+    """Flag food orders stuck in a non-terminal status.
+
+    This only checks and notifies; it never changes order status. It records one
+    ``ORDER_STALE_FLAGGED`` audit per order/status snapshot so reruns do not spam
+    recipients while an order stays untouched.
+    """
+    window_minutes = settings.CRON_ESCALATE_AFTER_MINUTES
+    cutoff = now - timedelta(minutes=window_minutes)
+    idle = func.coalesce(Order.updated_at, Order.created_at)
+    stale = (
+        db.query(Order)
+        .filter(
+            Order.status.notin_(FOOD_ORDER_TERMINAL_STATUSES),
+            idle < cutoff,
+        )
+        .order_by(idle.asc())
+        .limit(settings.CRON_BATCH_SIZE)
+        .all()
+    )
+    if not stale:
+        return
+
+    latest_flag = {}
+    for flag in (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.action == "ORDER_STALE_FLAGGED",
+            AuditLog.entity == "order",
+            AuditLog.entity_id.in_([order.id for order in stale]),
+        )
+        .order_by(AuditLog.created_at.desc())
+        .all()
+    ):
+        if flag.entity_id not in latest_flag:
+            latest_flag[flag.entity_id] = flag
+
+    for order in stale:
+        marker = order.updated_at or order.created_at
+        if marker is None:
+            continue
+        marker_iso = marker.isoformat()
+        previous_flag = latest_flag.get(order.id)
+        previous_value = (previous_flag.new_value or {}) if previous_flag else {}
+        if (
+            previous_value.get("status") == order.status
+            and previous_value.get("order_updated_at") == marker_iso
+        ):
+            continue
+
+        age_minutes = max(0, int((now - marker).total_seconds() // 60))
+        payload = {
+            "order_id": str(order.id),
+            "order_number": order.order_number,
+            "status": order.status,
+            "order_type": order.order_type,
+            "age_minutes": age_minutes,
+            "property_id": str(order.property_id) if order.property_id else None,
+            "staff_id": str(order.staff_id) if order.staff_id else None,
+        }
+        notified_user_ids = set()
+        if order.staff_id is not None:
+            staff = (
+                db.query(Staff)
+                .filter(Staff.id == order.staff_id, Staff.is_active.is_(True))
+                .first()
+            )
+            if staff is not None and staff.user_id is not None:
+                _notify(
+                    db,
+                    staff=staff,
+                    user_id=staff.user_id,
+                    property_id=order.property_id,
+                    title=f"Food order {order.order_number} stuck in {order.status}",
+                    body=(
+                        f"Food order {order.order_number} ({order.order_type}) has been in "
+                        f"{order.status} for {age_minutes} minutes."
+                    ),
+                    kind="ORDER_STALE",
+                    data=payload,
+                )
+                notified_user_ids.add(staff.user_id)
+        for manager in _managers(db, order.property_id):
+            if manager.id in notified_user_ids:
+                continue
+            _notify(
+                db,
+                staff=None,
+                user_id=manager.id,
+                property_id=order.property_id,
+                title=f"Food order {order.order_number} stuck in {order.status}",
+                body=(
+                    f"Food order {order.order_number} ({order.order_type}) has been in "
+                    f"{order.status} for {age_minutes} minutes."
+                ),
+                kind="ORDER_STALE",
+                data=payload,
+            )
+            notified_user_ids.add(manager.id)
+        _audit(
+            db,
+            "ORDER_STALE_FLAGGED",
+            "order",
+            order.id,
+            {
+                "status": order.status,
+                "order_updated_at": marker_iso,
+                "age_minutes": age_minutes,
+                "notified_user_ids": sorted(
+                    str(user_id) for user_id in notified_user_ids
+                ),
+            },
+        )
+        summary["food_orders_flagged"] += 1
+
+
+# --------------------------------------------------------------------------- #
 # Entrypoint
 # --------------------------------------------------------------------------- #
 def run() -> dict:
@@ -325,6 +450,7 @@ def run() -> dict:
         "housekeeping_assigned": 0,
         "maintenance_assigned": 0,
         "escalated": 0,
+        "food_orders_flagged": 0,
         "unassignable": 0,
     }
     now = datetime.utcnow()
@@ -334,6 +460,7 @@ def run() -> dict:
         assign_housekeeping(db, summary)
         assign_maintenance(db, summary)
         escalate_tasks(db, summary, now)
+        flag_stale_food_orders(db, summary, now)
         db.commit()
     except Exception:
         db.rollback()
@@ -344,11 +471,12 @@ def run() -> dict:
 
     logger.info(
         "auto_assign complete: %s assigned, %s housekeeping, %s maintenance, "
-        "%s escalated, %s unassignable",
+        "%s escalated, %s food orders flagged, %s unassignable",
         summary["tasks_assigned"],
         summary["housekeeping_assigned"],
         summary["maintenance_assigned"],
         summary["escalated"],
+        summary["food_orders_flagged"],
         summary["unassignable"],
     )
     return summary
