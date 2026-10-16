@@ -1,5 +1,6 @@
 """User model."""
 from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Text, UUID
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
 from app.core.database import Base
@@ -21,3 +22,4 @@ class User(Base):
     last_login = Column(DateTime)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    role = relationship("Role", lazy="joined")

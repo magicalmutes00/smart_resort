@@ -5,10 +5,17 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Database
-    DATABASE_URL: str = "postgresql://postgres:pratheesh1004@db.ccobvieckisfmmdyeeim.supabase.co:5432/postgres?sslmode=require"
+    DATABASE_URL: str = "postgresql://smartresort:smartresort@postgres:5432/smartresort"
+    # Optional direct (non-pooled) URL used for migrations. Falls back to DATABASE_URL.
+    DATABASE_URL_DIRECT: str = ""
+
+    # Connection pool (tuned for managed/serverless Postgres such as Neon)
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 10
+    DB_POOL_RECYCLE: int = 1800
 
     # Redis
-    REDIS_URL: str = "redis://red-dacq81mk1f9s73aaang0:6379"
+    REDIS_URL: str = "redis://redis:6379/0"
 
     # JWT
     JWT_SECRET: str = "dev-secret-key-replace-in-production"
@@ -34,6 +41,18 @@ class Settings(BaseSettings):
 
     # CORS
     CORS_ORIGINS: list = ["http://localhost:5173", "http://localhost:3000"]
+
+    # Public URL of the customer web app, embedded in generated QR codes
+    CUSTOMER_APP_URL: str = "http://localhost:5173"
+
+    # Scheduled jobs (auto-assignment & escalation)
+    CRON_ESCALATE_AFTER_MINUTES: int = 30
+    CRON_BATCH_SIZE: int = 500
+
+    @property
+    def migration_database_url(self) -> str:
+        """URL to use for Alembic migrations (prefers a direct connection)."""
+        return self.DATABASE_URL_DIRECT or self.DATABASE_URL
 
     class Config:
         env_file = ".env"

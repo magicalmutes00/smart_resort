@@ -179,6 +179,50 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id')
     )
 
+    # room_types
+    op.create_table('room_types',
+        sa.Column('id', sa.UUID(), nullable=False),
+        sa.Column('name', sa.String(length=100), nullable=False),
+        sa.Column('description', sa.Text(), nullable=True),
+        sa.Column('base_price', sa.Numeric(precision=12, scale=2), nullable=False),
+        sa.Column('max_occupancy', sa.Integer(), nullable=True),
+        sa.Column('amenities', sa.ARRAY(sa.Text()), nullable=True),
+        sa.PrimaryKeyConstraint('id')
+    )
+
+    # rooms
+    op.create_table('rooms',
+        sa.Column('id', sa.UUID(), nullable=False),
+        sa.Column('property_id', sa.UUID(), nullable=True),
+        sa.Column('number', sa.String(length=20), nullable=False),
+        sa.Column('room_type_id', sa.UUID(), nullable=True),
+        sa.Column('floor', sa.Integer(), nullable=True),
+        sa.Column('status', sa.String(length=20), nullable=True),
+        sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
+        sa.ForeignKeyConstraint(['property_id'], ['properties.id'], ),
+        sa.ForeignKeyConstraint(['room_type_id'], ['room_types.id'], ),
+        sa.PrimaryKeyConstraint('id')
+    )
+
+    # reservations
+    op.create_table('reservations',
+        sa.Column('id', sa.UUID(), nullable=False),
+        sa.Column('property_id', sa.UUID(), nullable=True),
+        sa.Column('guest_id', sa.UUID(), nullable=True),
+        sa.Column('room_id', sa.UUID(), nullable=True),
+        sa.Column('check_in', sa.Date(), nullable=False),
+        sa.Column('check_out', sa.Date(), nullable=False),
+        sa.Column('status', sa.String(length=30), nullable=True),
+        sa.Column('total_amount', sa.Numeric(precision=12, scale=2), nullable=True),
+        sa.Column('notes', sa.Text(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
+        sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
+        sa.ForeignKeyConstraint(['guest_id'], ['guests.id'], ),
+        sa.ForeignKeyConstraint(['property_id'], ['properties.id'], ),
+        sa.ForeignKeyConstraint(['room_id'], ['rooms.id'], ),
+        sa.PrimaryKeyConstraint('id')
+    )
+
     # orders
     op.create_table('orders',
         sa.Column('id', sa.UUID(), nullable=False),
@@ -467,50 +511,6 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id')
     )
 
-    # room_types
-    op.create_table('room_types',
-        sa.Column('id', sa.UUID(), nullable=False),
-        sa.Column('name', sa.String(length=100), nullable=False),
-        sa.Column('description', sa.Text(), nullable=True),
-        sa.Column('base_price', sa.Numeric(precision=12, scale=2), nullable=False),
-        sa.Column('max_occupancy', sa.Integer(), nullable=True),
-        sa.Column('amenities', sa.ARRAY(sa.Text()), nullable=True),
-        sa.PrimaryKeyConstraint('id')
-    )
-
-    # rooms
-    op.create_table('rooms',
-        sa.Column('id', sa.UUID(), nullable=False),
-        sa.Column('property_id', sa.UUID(), nullable=True),
-        sa.Column('number', sa.String(length=20), nullable=False),
-        sa.Column('room_type_id', sa.UUID(), nullable=True),
-        sa.Column('floor', sa.Integer(), nullable=True),
-        sa.Column('status', sa.String(length=20), nullable=True),
-        sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
-        sa.ForeignKeyConstraint(['property_id'], ['properties.id'], ),
-        sa.ForeignKeyConstraint(['room_type_id'], ['room_types.id'], ),
-        sa.PrimaryKeyConstraint('id')
-    )
-
-    # reservations
-    op.create_table('reservations',
-        sa.Column('id', sa.UUID(), nullable=False),
-        sa.Column('property_id', sa.UUID(), nullable=True),
-        sa.Column('guest_id', sa.UUID(), nullable=True),
-        sa.Column('room_id', sa.UUID(), nullable=True),
-        sa.Column('check_in', sa.Date(), nullable=False),
-        sa.Column('check_out', sa.Date(), nullable=False),
-        sa.Column('status', sa.String(length=30), nullable=True),
-        sa.Column('total_amount', sa.Numeric(precision=12, scale=2), nullable=True),
-        sa.Column('notes', sa.Text(), nullable=True),
-        sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
-        sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
-        sa.ForeignKeyConstraint(['guest_id'], ['guests.id'], ),
-        sa.ForeignKeyConstraint(['property_id'], ['properties.id'], ),
-        sa.ForeignKeyConstraint(['room_id'], ['rooms.id'], ),
-        sa.PrimaryKeyConstraint('id')
-    )
-
     # settings
     op.create_table('settings',
         sa.Column('id', sa.UUID(), nullable=False),
@@ -524,10 +524,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Dropped in reverse dependency order so FKs are never violated.
     op.drop_table('settings')
-    op.drop_table('rooms')
-    op.drop_table('room_types')
-    op.drop_table('reservations')
     op.drop_table('audit_logs')
     op.drop_table('notifications')
     op.drop_table('folio_items')
@@ -545,6 +543,7 @@ def downgrade() -> None:
     op.drop_table('order_status_history')
     op.drop_table('order_items')
     op.drop_table('orders')
+    op.drop_table('reservations')
     op.drop_table('lake_seats')
     op.drop_table('menu_item_addons')
     op.drop_table('menu_item_variants')
@@ -552,6 +551,8 @@ def downgrade() -> None:
     op.drop_table('menu_categories')
     op.drop_table('restaurant_tables')
     op.drop_table('lake_zones')
+    op.drop_table('rooms')
+    op.drop_table('room_types')
     op.drop_table('guests')
     op.drop_table('staff')
     op.drop_table('users')

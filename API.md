@@ -14,7 +14,7 @@
 ```
 Request:
 {
-  "email": "admin@lakeview.com",
+  "email": "mailtopratheeshm@gmail.com",
   "password": "dev_password_2024"
 }
 

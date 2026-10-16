@@ -134,3 +134,82 @@ Before deploying to production:
 - **PostgreSQL:** Read replicas for analytics; sharding future consideration
 - **Redis:** Cluster mode for high availability
 - **Static assets:** Serve via CDN for React frontend
+
+---
+
+## 10. Render + Neon + Upstash (Blueprints)
+
+Deployment is described entirely by `render.yaml` at the repo root. Render reads
+it on connect (or re-sync) and provisions the services below.
+
+| Service | Type | Purpose |
+|---------|------|---------|
+| `smartresort-backend` | `web` (Python) | FastAPI API. Start command: `alembic upgrade head && python -m app.utils.seed && uvicorn ...` |
+| `smartresort-cron` | `cron` (Python) | Runs `python -m app.jobs.auto_assign` every 15 minutes (`*/15 * * * *`). |
+
+### 10.1 Database — Neon (auth + storage)
+
+All data lives in one Neon Postgres, including auth (the `users` table) and every
+domain table (reservations, orders, tasks, etc.).
+
+- `DATABASE_URL` is the Neon **pooled** endpoint (`…-pooler…`) with
+  `sslmode=require&channel_binding=require`.
+- Alembic now reads the URL from `settings.DATABASE_URL` (see
+  `backend/alembic/env.py`); it no longer uses the hardcoded value in
+  `alembic.ini`. So `alembic upgrade head` works on any environment purely from
+  `DATABASE_URL`.
+- Optional `DATABASE_URL_DIRECT` may point at the **non-pooled** Neon endpoint;
+  if set, migrations use it for a more reliable DDL experience. Falls back to
+  `DATABASE_URL` when unset.
+- Connection pool is tuned for a serverless Postgres via `DB_POOL_SIZE`,
+  `DB_MAX_OVERFLOW`, `DB_POOL_RECYCLE` (with `pool_pre_ping` on to survive
+  idle disconnects).
+
+### 10.2 Redis — Upstash
+
+`REDIS_URL` points at Upstash Redis over TLS. The Python `redis` client needs the
+**`rediss://`** scheme (unlike `redis-cli --tls`, which uses `redis://`):
+
+```
+rediss://default:<TOKEN>@<host>.upstash.io:6379
+```
+
+> `REDIS_URL` is currently configured but not yet used by backend code (there is
+> no Redis import). It is wired and ready so rate-limiting / pub-sub can adopt it
+> without re-deploy plumbing.
+
+### 10.3 Cron job
+
+`backend/app/jobs/auto_assign.py` runs every 15 minutes and, in a single
+transaction:
+
+1. Auto-assigns PENDING `tasks` to the least-loaded active staff in the matching
+   department, writes a `task_assignments` row, and notifies them.
+2. Auto-assigns PENDING `housekeeping_tasks` and `maintenance_requests` the same way.
+3. Escalates open work idle longer than `CRON_ESCALATE_AFTER_MINUTES` (default 30)
+   by bumping priority up the `LOW → NORMAL → HIGH → URGENT` ladder and notifying
+   managers/owners. Every action is recorded in `audit_logs`.
+
+Run it manually with:
+
+```bash
+cd backend
+python -m app.jobs.auto_assign
+```
+
+It is idempotent — repeated runs never create duplicate assignments. Settings:
+`CRON_ESCALATE_AFTER_MINUTES`, `CRON_BATCH_SIZE`.
+
+### 10.4 Secrets hygiene
+
+`DATABASE_URL` and `REDIS_URL` are currently embedded in `render.yaml`, which is
+committed to git. Before going public, either:
+
+- move them to Render **Dashboard → Environment** and mark as `sync: false` in the
+  blueprint, or
+- use a Render **Environment Group** shared across services.
+
+Also rotate the Neon and Upstash credentials if this repo is ever made public,
+and note that `python -m app.utils.seed` creates known dev users — after the
+first deploy, consider removing the seed step from the start command and
+deleting the dev rows.

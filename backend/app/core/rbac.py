@@ -2,7 +2,7 @@
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import Optional
 from uuid import UUID
 
@@ -105,7 +105,7 @@ DEFAULT_ROLE_PERMISSIONS = {
     ],
     "MANAGER": [
         Permission.ORDERS_READ, Permission.ORDERS_UPDATE, Permission.ORDERS_CANCEL,
-        Permission.MENU_READ, Permission.MENU_UPDATE,
+        Permission.MENU_READ, Permission.MENU_CREATE, Permission.MENU_UPDATE,
         Permission.TASKS_READ, Permission.TASKS_CREATE, Permission.TASKS_ASSIGN,
         Permission.PAYMENTS_READ, Permission.PAYMENTS_REFUND,
         Permission.ROOMS_READ, Permission.ROOMS_UPDATE, Permission.ROOMS_STATUS_CHANGE,
@@ -201,7 +201,7 @@ def get_current_user(
             detail="Invalid user id",
         )
 
-    user = db.query(User).filter(User.id == user_uuid).first()
+    user = db.query(User).options(joinedload(User.role)).filter(User.id == user_uuid).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

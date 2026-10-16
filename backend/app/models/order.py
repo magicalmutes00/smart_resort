@@ -25,6 +25,10 @@ class Order(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
+    items = relationship("OrderItem", backref="order", cascade="all, delete-orphan")
+    table = relationship("RestaurantTable", foreign_keys=[table_id])
+    room = relationship("Room", foreign_keys=[room_id])
+
 
 class OrderItem(Base):
     __tablename__ = "order_items"
@@ -35,6 +39,7 @@ class OrderItem(Base):
     quantity = Column(Integer, default=1)
     unit_price = Column(Numeric(10, 2), nullable=False)
     notes = Column(Text)
+    menu_item = relationship("MenuItem", foreign_keys=[menu_item_id])
 
 
 class OrderStatusHistory(Base):

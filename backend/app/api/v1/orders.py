@@ -7,7 +7,7 @@ from uuid import UUID
 import uuid
 
 from app.core.database import get_db
-from app.core.rbac import RequirePermission, get_user_with_role
+from app.core.rbac import RequirePermission, get_user_with_role, get_current_user_optional
 from app.services.order_service import OrderService
 
 router = APIRouter()
@@ -21,9 +21,9 @@ class OrderItemCreate(BaseModel):
 
 
 class OrderCreate(BaseModel):
-    table_id: Optional[UUID] = None
-    room_id: Optional[UUID] = None
-    lake_seat_id: Optional[UUID] = None
+    table_id: Optional[str] = None
+    room_id: Optional[str] = None
+    lake_seat_id: Optional[str] = None
     order_type: str = Field(default="DINE_IN", pattern="^(DINE_IN|ROOM_SERVICE|LAKE|TAKEOUT|DELIVERY)$")
     items: list[OrderItemCreate] = Field(..., min_length=1)
     notes: Optional[str] = None
@@ -44,14 +44,30 @@ class OrderResponse(BaseModel):
 
 
 def _serialize_order(order) -> dict:
+    items = []
+    for item in order.items:
+        items.append({
+            "id": str(item.id),
+            "menu_item_id": str(item.menu_item_id),
+            "menu_item_name": item.menu_item.name if item.menu_item else None,
+            "quantity": item.quantity,
+            "unit_price": float(item.unit_price),
+            "notes": item.notes,
+        })
     return {
         "id": str(order.id),
         "order_number": order.order_number,
         "status": order.status,
         "order_type": order.order_type,
         "total_amount": float(order.total_amount),
+        "table_id": str(order.table_id) if order.table_id else None,
+        "table_number": order.table.table_number if order.table else None,
+        "room_id": str(order.room_id) if order.room_id else None,
+        "room_number": order.room.room_number if order.room else None,
+        "items": items,
         "notes": order.notes,
         "created_at": order.created_at.isoformat() if order.created_at else None,
+        "updated_at": order.updated_at.isoformat() if order.updated_at else None,
     }
 
 
@@ -67,7 +83,7 @@ async def create_order(
     idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
     background_tasks: BackgroundTasks = None,
     db: Session = Depends(get_db),
-    current: dict = Depends(get_user_with_role),
+    current: Optional[dict] = Depends(get_user_with_role),
 ):
     """Create a new order.
 
@@ -88,8 +104,8 @@ async def create_order(
             table_id=str(order_data.table_id) if order_data.table_id else None,
             room_id=str(order_data.room_id) if order_data.room_id else None,
             lake_seat_id=str(order_data.lake_seat_id) if order_data.lake_seat_id else None,
-            property_id=current.get("property_id"),
-            staff_id=current.get("id"),
+            property_id=current.get("property_id") if current else None,
+            staff_id=current.get("id") if current else None,
             notes=order_data.notes,
             special_instructions=order_data.special_instructions,
             idempotency_key=idempotency_key,
@@ -134,11 +150,44 @@ def list_orders(
     }
 
 
+@router.post("/guest", response_model=dict, status_code=201)
+async def create_guest_order(
+    order_data: OrderCreate,
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    background_tasks: BackgroundTasks = None,
+    db: Session = Depends(get_db),
+):
+    """Guest checkout — no login required."""
+    if not order_data.items:
+        raise HTTPException(status_code=400, detail="Order must have at least one item")
+    if idempotency_key is None:
+        idempotency_key = str(uuid.uuid4())
+    service = OrderService(db)
+    try:
+        order = service.create_order(
+            items=[item.model_dump() for item in order_data.items],
+            order_type=order_data.order_type,
+            table_id=str(order_data.table_id) if order_data.table_id else None,
+            room_id=str(order_data.room_id) if order_data.room_id else None,
+            lake_seat_id=str(order_data.lake_seat_id) if order_data.lake_seat_id else None,
+            property_id=None,
+            staff_id=None,
+            notes=order_data.notes,
+            special_instructions=order_data.special_instructions,
+            idempotency_key=idempotency_key,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if background_tasks:
+        background_tasks.add_task(_emit_order_events, db)
+    return _serialize_order(order)
+
+
 @router.get("/{order_id}", response_model=dict)
 def get_order(
     order_id: UUID,
     db: Session = Depends(get_db),
-    current: dict = Depends(RequirePermission("orders.read")),
+    current: Optional[dict] = Depends(get_current_user_optional),
 ):
     """Get a specific order."""
     service = OrderService(db)
@@ -148,11 +197,15 @@ def get_order(
     return _serialize_order(order)
 
 
+class StatusUpdate(BaseModel):
+    status: str
+    notes: Optional[str] = None
+
+
 @router.patch("/{order_id}/status", response_model=dict)
 async def update_status(
     order_id: UUID,
-    new_status: str = Query(..., alias="status"),
-    notes: Optional[str] = None,
+    data: StatusUpdate,
     background_tasks: BackgroundTasks = None,
     db: Session = Depends(get_db),
     current: dict = Depends(RequirePermission("orders.status_update")),
@@ -162,9 +215,9 @@ async def update_status(
     try:
         order = service.transition_status(
             order_id=str(order_id),
-            new_status=new_status,
+            new_status=data.status,
             changed_by=current.get("id"),
-            notes=notes,
+            notes=data.notes,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

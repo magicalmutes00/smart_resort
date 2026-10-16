@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from uuid import UUID
 
 from app.core.database import get_db
+from app.core.rbac import RequirePermission, Permission
 from app.models.menu import MenuCategory, MenuItem, MenuItemVariant, MenuItemAddon
 
 router = APIRouter()
@@ -68,4 +69,38 @@ def get_item(item_id: UUID, db: Session = Depends(get_db)):
     item = db.query(MenuItem).filter(MenuItem.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Menu item not found")
+    return MenuItemResponse.model_validate(item)
+
+
+class MenuItemCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    description: Optional[str] = None
+    base_price: float = Field(..., gt=0)
+    preparation_time: int = Field(..., ge=0)
+    category_id: UUID
+    is_available: bool = True
+
+
+@router.post("/items", response_model=MenuItemResponse, status_code=201)
+def create_item(
+    payload: MenuItemCreate,
+    current: dict = Depends(RequirePermission(Permission.MENU_CREATE)),
+    db: Session = Depends(get_db),
+):
+    """Create a new menu item."""
+    category = db.query(MenuCategory).filter(MenuCategory.id == payload.category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    item = MenuItem(
+        property_id=category.property_id,
+        category_id=payload.category_id,
+        name=payload.name,
+        description=payload.description,
+        base_price=payload.base_price,
+        preparation_time=payload.preparation_time,
+        is_available=payload.is_available,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
     return MenuItemResponse.model_validate(item)

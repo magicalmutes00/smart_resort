@@ -43,7 +43,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - JWT_SECRET=dev-secret-change-in-production
       - JWT_REFRESH_SECRET=dev-refresh-secret-change-in-production
-      - CORS_ORIGINS=["http://localhost:5173","http://localhost:3000"]
+      - CORS_ORIGINS=["http://localhost:5173","http://localhost:3000","http://192.168.1.5:5173","http://192.168.1.5:3000","https://defuse-herbs-sphinx.ngrok-free.dev"]
     ports:
       - "8000:8000"
     depends_on:
@@ -56,16 +56,23 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   web-customer:
-    image: node:20-alpine
+    build:
+      context: ./apps/web/customer
+      dockerfile: Dockerfile
     container_name: smartresort_web_customer
     working_dir: /app
     volumes:
-      - ./apps/web/customer:/app
-      - /app/node_modules
+      - ./apps/web/customer/src:/app/src
+      - ./apps/web/customer/public:/app/public
+      - ./apps/web/customer/index.html:/app/index.html
+      - ./apps/web/customer/vite.config.ts:/app/vite.config.ts
+      - ./apps/web/customer/tsconfig.json:/app/tsconfig.json
+      - ./apps/web/customer/tailwind.config.js:/app/tailwind.config.js
+      - ./apps/web/customer/postcss.config.js:/app/postcss.config.js
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=http://localhost:8000/api/v1
+      - VITE_API_URL=http://192.168.1.5:8000/api/v1
     command: npm run dev -- --host 0.0.0.0
     networks:
       - smartresort_net

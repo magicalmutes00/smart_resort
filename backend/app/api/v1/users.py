@@ -1,11 +1,12 @@
 """Users routes."""
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel, EmailStr
 from uuid import UUID
 
 from app.core.database import get_db
+from app.core.rbac import get_current_user
 from app.models.user import User
 from app.models.role import Role
 
@@ -18,6 +19,8 @@ class UserResponse(BaseModel):
     username: str
     first_name: Optional[str]
     last_name: Optional[str]
+    phone: Optional[str]
+    avatar_url: Optional[str]
     role: Optional[str]
     is_active: bool
 
@@ -31,6 +34,8 @@ class UserMe(BaseModel):
     username: str
     first_name: Optional[str]
     last_name: Optional[str]
+    phone: Optional[str]
+    avatar_url: Optional[str]
     role: str
     permissions: list[str]
 
@@ -39,17 +44,20 @@ class UserMe(BaseModel):
 
 
 @router.get("/me", response_model=UserMe)
-def get_current_user(db: Session = Depends(get_db)):
-    """Get current authenticated user."""
-    # Placeholder - in real implementation, get from JWT
+def get_current_user_me(current: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Get the current authenticated user (from JWT)."""
+    role_name = current.role.name if current.role else "user"
+    perms = ["*"] if role_name == "SUPER_ADMIN" else []
     return UserMe(
-        id=UUID("00000000-0000-0000-0000-000000000001"),
-        email="admin@lakeview.com",
-        username="admin",
-        first_name="Admin",
-        last_name="User",
-        role="ADMIN",
-        permissions=["*"]
+        id=current.id,
+        email=current.email,
+        username=current.username,
+        first_name=current.first_name,
+        last_name=current.last_name,
+        phone=current.phone,
+        avatar_url=current.avatar_url,
+        role=role_name,
+        permissions=perms,
     )
 
 

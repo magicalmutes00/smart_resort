@@ -44,7 +44,7 @@ ROLES = [
 
 # Test users — DEV ONLY
 USERS = [
-    ("admin@lakeview.com", "admin", "Admin", "User", "SUPER_ADMIN", "dev_admin_2024"),
+    ("mailtopratheeshm@gmail.com", "admin", "Admin", "User", "SUPER_ADMIN", "dev_admin_2024"),
     ("owner@lakeview.com", "owner", "Resort", "Owner", "OWNER", "dev_owner_2024"),
     ("manager@lakeview.com", "manager", "Resort", "Manager", "MANAGER", "dev_manager_2024"),
     ("reception@lakeview.com", "reception", "Front", "Desk", "RECEPTIONIST", "dev_reception_2024"),
@@ -193,9 +193,9 @@ def seed():
         db.commit()
         print("  + 10 rooms (101-110)")
 
-        # --- Restaurant tables T-001 to T-020
+        # --- Restaurant tables T-001 to T-007
         existing_tables = {t.table_number for t in db.query(RestaurantTable).all()}
-        for i in range(1, 21):
+        for i in range(1, 8):
             num = f"T-{i:03d}"
             if num not in existing_tables:
                 t = RestaurantTable(
@@ -203,12 +203,12 @@ def seed():
                     table_number=num,
                     capacity=4,
                     is_active=True,
-                    location="Main Hall" if i <= 10 else "Garden",
+                    location="Main Hall",
                     status="AVAILABLE",
                 )
                 db.add(t)
         db.commit()
-        print("  + 20 restaurant tables")
+        print("  + 7 restaurant tables")
 
         # --- Lake zones
         zone_a = db.query(LakeZone).filter(LakeZone.name == "Zone A").first()

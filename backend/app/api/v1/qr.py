@@ -1,10 +1,14 @@
 """QR code management routes."""
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from uuid import UUID
+import qrcode
+import io
+import os
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.rbac import RequirePermission
 from app.models.qr import QRCode
@@ -82,6 +86,18 @@ def get_code(
     if not qr:
         raise HTTPException(status_code=404, detail="QR code not found")
     return QRResponse.model_validate(qr)
+
+
+@router.get("/image")
+def qr_image(code: str = Query(..., description="QR code value, e.g. TABLE-T-001")):
+    """Generate a PNG QR image for scanning. URL encoded in the QR should be your customer site with ?code=..."""
+    # The URL embedded in the QR — configure via CUSTOMER_APP_URL
+    customer_url = f"{settings.CUSTOMER_APP_URL}/?code={code}"
+    img = qrcode.make(customer_url, box_size=10, border=2)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return Response(content=buf.read(), media_type="image/png")
 
 
 @router.patch("/codes/{qr_id}/disable")

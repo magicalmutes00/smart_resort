@@ -1,21 +1,67 @@
+# Render blueprint for SmartResort.
+#
+# Deploys the FastAPI backend (web service) plus a scheduled cron job that
+# auto-assigns and escalates tasks, both backed by:
+#   - Neon Postgres (auth + all app storage) via DATABASE_URL
+#   - Upstash Redis via REDIS_URL (TLS, rediss:// scheme)
+#
+# NOTE: DATABASE_URL and REDIS_URL below contain live credentials. See
+# DEPLOYMENT.md §"Render + Neon" — prefer setting them as secrets in the Render
+# dashboard (`sync: false`) rather than committing them to git.
+
 services:
+  # ------------------------------------------------------------------ #
+  # FastAPI backend
+  # ------------------------------------------------------------------ #
   - type: web
     name: smartresort-backend
     runtime: python
     plan: starter
     region: oregon
     branch: main
+    rootDir: backend
     buildCommand: pip install -r requirements.txt
+    # Apply migrations, seed base data (idempotent), then serve.
     startCommand: alembic upgrade head && python -m app.utils.seed && uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /
+    healthCheckPath: /api/v1/health
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
       - key: DATABASE_URL
-        value: postgresql://postgres:pratheesh1004@db.ccobvieckisfmmdyeeim.supabase.co:5432/postgres?sslmode=require
+        value: "postgresql://neondb_owner:npg_qj09MdFeNUpK@ep-dawn-queen-b46m6ppr-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+      # Optional: a direct (non-pooler) Neon endpoint for faster/safer migrations.
+      # Leave unset to reuse DATABASE_URL.
+      # - key: DATABASE_URL_DIRECT
+      #   value: "postgresql://neondb_owner:npg_qj09MdFeNUpK@ep-dawn-queen-b46m6ppr.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require"
       - key: REDIS_URL
-        value: redis://red-dacq81mk1f9s73aaang0:6379
+        value: "rediss://default:gQAAAAAAAXR_AAIgcDE5NzE5NGZhZmVlZTI0MzlkOTNiNzVkNjRmZjI0M2Y5Nw@tough-hound-95359.upstash.io:6379"
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
         generateValue: true
       - key: CORS_ORIGINS
         value: '["https://smart-resort-pu1vwxe4c-pratheeshs-projects-f7b49412.vercel.app"]'
+      # Base URL of the customer web app, embedded in generated QR codes.
+      - key: CUSTOMER_APP_URL
+        value: "https://smart-resort-pu1vwxe4c-pratheeshs-projects-f7b49412.vercel.app"
+
+  # ------------------------------------------------------------------ #
+  # Cron job: auto-assign pending work + escalate stale tasks (every 15 min)
+  # ------------------------------------------------------------------ #
+  - type: cron
+    name: smartresort-cron
+    runtime: python
+    plan: starter
+    region: oregon
+    branch: main
+    rootDir: backend
+    schedule: "*/15 * * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m app.jobs.auto_assign
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: DATABASE_URL
+        value: "postgresql://neondb_owner:npg_qj09MdFeNUpK@ep-dawn-queen-b46m6ppr-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+      - key: REDIS_URL
+        value: "rediss://default:gQAAAAAAAXR_AAIgcDE5NzE5NGZhZmVlZTI0MzlkOTNiNzVkNjRmZjI0M2Y5Nw@tough-hound-95359.upstash.io:6379"

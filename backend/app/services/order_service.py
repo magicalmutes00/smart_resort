@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.models.order import Order, OrderItem, OrderStatusHistory
 from app.models.menu import MenuItem
+from app.models.dining import RestaurantTable
+from app.models.rooms import Room
 from app.websocket.gateway import get_connection_manager
 
 
@@ -59,6 +61,19 @@ class OrderService:
             ).first()
             if existing:
                 return existing
+
+        # Resolve customer-facing string codes to DB UUID FKs
+        if table_id:
+            try:
+                uuid.UUID(str(table_id))
+                # already a UUID — keep as-is
+            except ValueError:
+                tbl = self.db.query(RestaurantTable).filter(
+                    RestaurantTable.table_number == str(table_id)
+                ).first()
+                if tbl:
+                    table_id = str(tbl.id)
+                # else: table_id stays as string (FK mismatch caught by DB; will error)
 
         order = Order(
             order_number=self.generate_order_number(),
@@ -220,7 +235,13 @@ class OrderService:
         limit: int = 50,
         offset: int = 0,
     ) -> list[Order]:
-        query = self.db.query(Order)
+        from sqlalchemy.orm import joinedload
+        from app.models.order import OrderItem
+        query = self.db.query(Order).options(
+            joinedload(Order.table),
+            joinedload(Order.room),
+            joinedload(Order.items).joinedload(OrderItem.menu_item),
+        )
         if status:
             query = query.filter(Order.status == status)
         if order_type:
@@ -245,6 +266,7 @@ class OrderService:
             items.append({
                 "id": str(item.id),
                 "menu_item_id": str(item.menu_item_id),
+                "menu_item_name": item.menu_item.name if item.menu_item else None,
                 "quantity": item.quantity,
                 "unit_price": float(item.unit_price),
                 "notes": item.notes,
@@ -256,7 +278,9 @@ class OrderService:
             "order_type": order.order_type,
             "total_amount": float(order.total_amount),
             "table_id": str(order.table_id) if order.table_id else None,
+            "table_number": order.table.table_number if order.table else None,
             "room_id": str(order.room_id) if order.room_id else None,
+            "room_number": order.room.room_number if order.room else None,
             "lake_seat_id": str(order.lake_seat_id) if order.lake_seat_id else None,
             "items": items,
             "notes": order.notes,

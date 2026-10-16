@@ -8,6 +8,7 @@ from pathlib import Path
 # Add app to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from app.core.config import settings
 from app.core.database import Base
 from app.models import (
     Property, User, Role, Staff, Guest,
@@ -21,6 +22,13 @@ from app.models.dining import RestaurantTable, LakeZone, LakeSeat
 from app.models.qr import QRCode
 
 config = context.config
+
+# Use the runtime DATABASE_URL (e.g. Neon) instead of the value in alembic.ini.
+# Escape '%' because the value is passed through ConfigParser interpolation.
+config.set_main_option(
+    "sqlalchemy.url",
+    settings.migration_database_url.replace("%", "%%"),
+)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

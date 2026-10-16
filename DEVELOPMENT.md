@@ -90,7 +90,7 @@ python -m app.utils.seed
 
 | Role | Email | Password |
 |------|-------|----------|
-| SUPER_ADMIN | admin@lakeview.com | dev_admin_2024 |
+| SUPER_ADMIN | mailtopratheeshm@gmail.com | dev_admin_2024 |
 | MANAGER | manager@lakeview.com | dev_manager_2024 |
 | KITCHEN | kitchen@lakeview.com | dev_kitchen_2024 |
 | WAITER | waiter@lakeview.com | dev_waiter_2024 |
