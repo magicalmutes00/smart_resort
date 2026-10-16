@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "769255223659",
+    "project_id": "campus-erp-262ce",
+    "storage_bucket": "campus-erp-262ce.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:769255223659:android:3ef902644da1a7d94e5c2e",
+        "android_client_info": {
+          "package_name": "com.smartresort.staff"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDVb6LWnCEj9-eX67PTgAXe0VJdHMC8GqQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
