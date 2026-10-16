@@ -1,5 +1,6 @@
 """QR code management routes."""
 from typing import Optional
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -22,8 +23,8 @@ class QRResponse(BaseModel):
     location_type: str
     location_id: UUID
     is_active: bool
-    expires_at: Optional[str]
-    created_at: str
+    expires_at: Optional[datetime]
+    created_at: datetime
 
     class Config:
         from_attributes = True

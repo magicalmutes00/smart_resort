@@ -27,7 +27,7 @@ def upgrade() -> None:
         sa.Column('email', sa.String(length=255), nullable=True),
         sa.Column('timezone', sa.String(length=50), nullable=True),
         sa.Column('is_active', sa.Boolean(), nullable=True),
-        sa.Column('settings', postgresql.JSONB(), nullable=True),
+        sa.Column('settings', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
         sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
         sa.PrimaryKeyConstraint('id')
@@ -186,7 +186,7 @@ def upgrade() -> None:
         sa.Column('description', sa.Text(), nullable=True),
         sa.Column('base_price', sa.Numeric(precision=12, scale=2), nullable=False),
         sa.Column('max_occupancy', sa.Integer(), nullable=True),
-        sa.Column('amenities', sa.ARRAY(sa.Text()), nullable=True),
+        sa.Column('amenities', sa.JSON(), nullable=True),
         sa.PrimaryKeyConstraint('id')
     )
 
@@ -253,6 +253,24 @@ def upgrade() -> None:
     )
     op.create_index('ix_orders_status', 'orders', ['status'])
     op.create_index('ix_orders_created', 'orders', ['created_at'])
+
+    # payments
+    op.create_table('payments',
+        sa.Column('id', sa.UUID(), nullable=False),
+        sa.Column('order_id', sa.UUID(), nullable=True),
+        sa.Column('amount', sa.Numeric(precision=12, scale=2), nullable=False),
+        sa.Column('method', sa.String(length=30), nullable=False),
+        sa.Column('status', sa.String(length=30), nullable=True),
+        sa.Column('transaction_reference', sa.String(length=200), nullable=True),
+        sa.Column('provider', sa.String(length=50), nullable=True),
+        sa.Column('receipt_url', sa.String(length=500), nullable=True),
+        sa.Column('idempotency_key', sa.String(length=100), nullable=True),
+        sa.Column('notes', sa.Text(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
+        sa.ForeignKeyConstraint(['order_id'], ['orders.id'], ),
+        sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('idempotency_key')
+    )
 
     # order_items
     op.create_table('order_items',
@@ -487,7 +505,7 @@ def upgrade() -> None:
         sa.Column('body', sa.Text(), nullable=True),
         sa.Column('type', sa.String(length=50), nullable=False),
         sa.Column('is_read', sa.Boolean(), nullable=True),
-        sa.Column('data', postgresql.JSONB(), nullable=True),
+        sa.Column('data', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
         sa.ForeignKeyConstraint(['property_id'], ['properties.id'], ),
         sa.ForeignKeyConstraint(['staff_id'], ['staff.id'], ),
@@ -502,8 +520,8 @@ def upgrade() -> None:
         sa.Column('action', sa.String(length=100), nullable=False),
         sa.Column('entity', sa.String(length=50), nullable=False),
         sa.Column('entity_id', sa.UUID(), nullable=True),
-        sa.Column('old_value', postgresql.JSONB(), nullable=True),
-        sa.Column('new_value', postgresql.JSONB(), nullable=True),
+        sa.Column('old_value', sa.JSON(), nullable=True),
+        sa.Column('new_value', sa.JSON(), nullable=True),
         sa.Column('ip_address', sa.String(length=45), nullable=True),
         sa.Column('user_agent', sa.String(length=500), nullable=True),
         sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
@@ -516,7 +534,7 @@ def upgrade() -> None:
         sa.Column('id', sa.UUID(), nullable=False),
         sa.Column('property_id', sa.UUID(), nullable=True),
         sa.Column('key', sa.String(length=100), nullable=False),
-        sa.Column('value', postgresql.JSONB(), nullable=True),
+        sa.Column('value', sa.JSON(), nullable=True),
         sa.ForeignKeyConstraint(['property_id'], ['properties.id'], ),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('property_id', 'key')
@@ -542,6 +560,7 @@ def downgrade() -> None:
     op.drop_table('tasks')
     op.drop_table('order_status_history')
     op.drop_table('order_items')
+    op.drop_table('payments')
     op.drop_table('orders')
     op.drop_table('reservations')
     op.drop_table('lake_seats')
